@@ -1,57 +1,111 @@
-# 📊 WhatsApp Chat Analyzer
+# 💬 WhatsApp Chat Analyzer + 🧠 AI Insights
 
-A simple and efficient **WhatsApp Chat Analyzer** built using Python and Streamlit. This project focuses on extracting insights and statistics from exported WhatsApp chat data **without any AI/LLM integration**.
+A powerful **WhatsApp Chat Analyzer** built using Python and Streamlit that not only extracts statistical insights but also leverages **Google Gemini** to generate **AI-driven personality and communication analysis**.
 
+---
+
+### Live demo: https://whatsapp-chat-analyser-vedant.streamlit.app/
 ---
 
 ## 🚀 Features
 
-* 📈 **Basic Statistics**
+### 📊 1. Basic Analytics
 
-  * Total messages
-  * Total words
-  * Media shared
-  * Links shared
+* Total messages
+* Total words
+* Media shared
+* Links shared
 
-* 👤 **User-wise Analysis**
+---
 
-  * Most active users
-  * Message contribution distribution
+### 👤 2. User-wise Analysis
 
-* 📅 **Timeline Analysis**
+* Most active users
+* Contribution percentage
+* Individual user filtering
 
-  * Daily timeline
-  * Monthly timeline
+---
 
-* 🔥 **Activity Maps**
+### 📅 3. Timeline Analysis
 
-  * Most busy day
-  * Most busy month
-  * Weekly activity heatmap
+* Daily message trends
+* Monthly activity trends
 
-* ☁️ **Word Analysis**
+---
 
-  * WordCloud generation
-  * Most common words
-  * Stopwords removal (including Hinglish support)
+### 🔥 4. Activity Insights
 
-* 🔗 **Link Extraction**
+* Most active day of week
+* Most active month
+* Weekly heatmap (day × time)
 
-  * Count and analyze shared links
+---
+
+### ☁️ 5. Text & Word Analysis
+
+* WordCloud generation
+* Most common words
+* Hinglish + custom stopwords filtering
+* Removed noise:
+
+  * deleted messages
+  * media placeholders
+
+---
+
+### 🔗 6. Link Analysis
+
+* Total links shared
+* URL extraction using regex + parsing
+
+---
+
+### 😂 7. Emoji Analysis
+
+* Emoji frequency table
+* Top emoji distribution (pie chart)
+
+---
+
+### 🧠 8. AI-Powered Personality Analysis (NEW 🔥)
+
+Using **Google Gemini**, the system analyzes user chat behavior and provides:
+
+* Communication style
+* Tone (formal, casual, humorous, etc.)
+* Conversation behavior
+* Social personality
+* Dominant topics
+* Strengths & weaknesses
+* Confidence score
+* Final personality summary
+
+👉 Works **per user** (not overall) for better accuracy
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Frontend:** Streamlit
-* **Backend:** Python
-* **Libraries Used:**
+### 🖥️ Frontend
 
-  * pandas
-  * matplotlib
-  * seaborn
-  * wordcloud
-  * urlextract
+* **Streamlit**
+
+### ⚙️ Backend
+
+* Python
+
+### 📦 Libraries Used
+
+* pandas
+* matplotlib
+* seaborn
+* wordcloud
+* urlextract
+* emoji
+
+### 🤖 AI Integration
+
+* **Google Gemini API**
 
 ---
 
@@ -59,12 +113,18 @@ A simple and efficient **WhatsApp Chat Analyzer** built using Python and Streaml
 
 ```
 .
-├── app.py              # Main Streamlit application
-├── helper.py           # Analysis functions
-├── preprocessor.py     # Chat preprocessing logic
-├── stop_hinglish.txt   # Custom stopwords
-├── requirements.txt    # Dependencies
-├── setup.sh            # Setup script (optional)
+├── app.py                  # Main Streamlit application
+├── helper.py               # Analytics functions
+├── preprocessor.py         # Chat parsing logic
+├── gemini_service.py       # Gemini API integration
+├── insights.py             # AI prompt + structured output
+├── config.py               # Model configs
+├── stop_hinglish.txt       # Custom stopwords
+├── requirements.txt        # Dependencies
+├── setup.sh                # Setup script (optional)
+├── .streamlit/
+│   ├── config.toml         # Dark theme config
+│   └── secrets.toml        # API keys (production)
 └── .gitignore
 ```
 
@@ -72,25 +132,67 @@ A simple and efficient **WhatsApp Chat Analyzer** built using Python and Streaml
 
 ## ⚙️ Installation
 
-### 1. Clone the repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/VedantKawade3/Whatsapp-chat-analyser.git
-cd whatsapp-chat-analyser
+cd Whatsapp-chat-analyser
 ```
 
-### 2. Create virtual environment (recommended)
+---
+
+### 2. Create Virtual Environment
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate   # Linux/Mac
 .venv\Scripts\activate      # Windows
+source .venv/bin/activate   # Linux/Mac
 ```
 
-### 3. Install dependencies
+---
+
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
+```
+
+---
+
+## 🔑 Gemini API Setup (IMPORTANT)
+
+### 1. Get API Key from:
+
+👉 Google AI Studio
+
+---
+
+### 2. Set Environment Variable
+
+#### Windows:
+
+```bash
+set GEMINI_API_KEY=your_api_key
+```
+
+#### Linux/Mac:
+
+```bash
+export GEMINI_API_KEY=your_api_key
+```
+
+---
+
+### 3. (Optional - Production)
+
+Create file:
+
+```
+.streamlit/secrets.toml
+```
+
+```toml
+GEMINI_API_KEY = "your_api_key"
 ```
 
 ---
@@ -100,77 +202,114 @@ pip install -r requirements.txt
 ### 1. Export WhatsApp Chat
 
 * Open WhatsApp
-* Go to chat → Click on **3 dots → More → Export Chat**
-* Choose **Without Media**
+* Go to chat → **3 dots → More → Export Chat**
+* Select **Without Media**
 * Save `.txt` file
 
-### 2. Run the app
+---
+
+### 2. Run App
 
 ```bash
 streamlit run app.py
 ```
 
-### 3. Upload chat file in UI
+---
 
-* Open browser (usually `http://localhost:8501`)
-* Upload exported `.txt` file
-* Select user (or overall analysis)
-* Explore insights
+### 3. Use UI
+
+* Upload `.txt` file
+* Select user
+* Choose:
+
+  * 📊 **Show Analysis** → Normal analytics
+  * 🧠 **AI Analysis** → Gemini insights
 
 ---
 
 ## 🔍 How It Works
 
-1. **Preprocessing (`preprocessor.py`)**
+### 1. Preprocessing (`preprocessor.py`)
 
-   * Converts raw chat text into structured DataFrame
-   * Extracts:
+* Parses raw chat text
+* Converts to structured DataFrame
+* Extracts:
 
-     * Date
-     * User
-     * Message
+  * Date
+  * User
+  * Message
+  * Time features
 
-2. **Helper Functions (`helper.py`)**
+---
 
-   * Perform statistical analysis
-   * Generate plots and word clouds
+### 2. Analytics (`helper.py`)
 
-3. **Streamlit UI (`app.py`)**
+* Statistical computations
+* Word filtering
+* Graph generation
 
-   * Handles user interaction
-   * Displays visualizations
+---
+
+### 3. AI Insights (`insights.py` + `gemini_service.py`)
+
+* Converts chat → prompt
+* Sends to Gemini API
+* Returns structured personality analysis
+
+---
+
+### 4. UI (`app.py`)
+
+* Interactive dashboard
+* Dual-mode analysis (Normal + AI)
 
 ---
 
 ## ⚠️ Limitations
 
-* Works only with **exported WhatsApp `.txt` format**
-* No support for:
+* Works only with **WhatsApp exported `.txt` format**
+* AI insights depend on:
 
-  * Emojis analysis (basic version)
-  * Sentiment analysis
-* Hinglish handling depends on custom stopwords file
+  * message quantity
+  * message quality
+* Free tier Gemini API has:
+
+  * rate limits
+  * token limits
+
+---
+
+## 🔥 Future Improvements
+
+* Sentiment analysis
+* Toxicity detection
+* Chat summarization
+* Multi-user comparison
+* Real-time chat dashboard
+* Deployment on cloud (Streamlit Cloud / Vercel backend)
 
 ---
 
 ## 🤝 Contributing
 
-Feel free to fork this project and improve it. Pull requests are welcome.
+Pull requests are welcome.
+Feel free to fork and enhance features.
 
 ---
 
 ## 📜 License
 
-This project is open-source and available under the MIT License.
+MIT License
 
 ---
 
 ## 👨‍💻 Author
 
-Developed as part of a learning project to understand:
+Built to deeply understand:
 
 * Data preprocessing
-* Exploratory data analysis
-* Streamlit app development
+* Exploratory Data Analysis (EDA)
+* Streamlit app architecture
+* AI integration using LLMs
 
 ---
