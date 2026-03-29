@@ -4,6 +4,7 @@ from wordcloud import WordCloud
 import pandas as pd
 from collections import Counter
 import emoji
+import os
 
 extract = URLExtract()
 
@@ -39,8 +40,12 @@ def most_active_users(df):
 
 def create_wordcloud(selected_user, df):
 
-    f = open('data/stop_hinglish.txt', 'r')
-    stop_words = f.read()
+    # ✅ Load stopwords safely
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(BASE_DIR, 'stop_hinglish.txt')
+
+    with open(file_path, 'r') as f:
+        stop_words = set(f.read().split())   # 🔥 convert here
 
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
@@ -56,47 +61,53 @@ def create_wordcloud(selected_user, df):
     )]
 
     def remove_stop_words(message):
-        stop_words = set(stop_words.split())
-        y = []
-        for word in message.lower().split():
-            if word not in stop_words:
-                y.append(word)
-        return " ".join(y)
+        return " ".join([
+            word for word in message.lower().split()
+            if word not in stop_words
+        ])
 
     temp = temp.copy()
     temp['message'] = temp['message'].apply(remove_stop_words)
 
-    # 🔥 CRITICAL FIX
     text = temp['message'].str.cat(sep=" ").strip()
 
     if not text:
-        return None   # no data
+        return None
 
     wc = WordCloud(width=500, height=500, min_font_size=10, background_color='white')
     return wc.generate(text)
 
-def most_common_words(selected_user,df):
+def most_common_words(selected_user, df):
 
-    f = open('stop_hinglish.txt','r')
-    stop_words = f.read()
+    import os
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(BASE_DIR, 'stop_hinglish.txt')
+
+    with open(file_path, 'r') as f:
+        stop_words = set(f.read().split())
 
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
 
     temp = df[df['user'] != 'group_notification']
     temp = temp[temp['message'] != '<Media omitted>\n']
-    temp = temp[~temp['message'].str.lower().str.contains(r'deleted|edited|<media omitted>|this message', na=False)]
+    temp = temp[~temp['message'].str.lower().str.contains(
+        r'deleted|edited|<media omitted>|this message',
+        na=False
+    )]
 
     words = []
-
-    stop_words = set(stop_words.split())
 
     for message in temp['message']:
         for word in message.lower().split():
             if word not in stop_words:
                 words.append(word)
 
-    most_common_df = pd.DataFrame(Counter(words).most_common(20))
+    # 🔥 CRITICAL FIX
+    if len(words) == 0:
+        return None
+
+    most_common_df = pd.DataFrame(Counter(words).most_common(20), columns=['word', 'count'])
     return most_common_df
 
 def emoji_helper(selected_user, df):
@@ -107,8 +118,10 @@ def emoji_helper(selected_user, df):
     for message in df['message']:
         emojis.extend([c for c in message if c in emoji.EMOJI_DATA])
 
-    return pd.DataFrame(Counter(emojis).most_common())
+    if len(emojis) == 0:
+        return None
 
+    return pd.DataFrame(Counter(emojis).most_common(), columns=['emoji', 'count'])
 
 def monthly_timeline(selected_user,df):
 
