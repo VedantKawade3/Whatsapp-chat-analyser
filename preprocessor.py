@@ -1,52 +1,125 @@
-# preprocessor.py
 import re
+from typing import List, Dict
 import pandas as pd
 
-def preprocess(data):
-    pattern = r'\d{1,2}/\d{1,2}/\d{2},\s\d{1,2}:\d{2}\s?[ap]m\s-\s'
+# Matches:
+# 18/09/25, 7:10 pm - ...
+# 18/09/2025, 19:10 - ...
+MESSAGE_START_RE = re.compile(
+    r'^(?P<date>\d{1,2}/\d{1,2}/\d{2,4}),\s'
+    r'(?P<time>\d{1,2}:\d{2}(?:\s?[ap]m)?)\s-\s'
+    r'(?P<body>.*)$',
+    flags=re.IGNORECASE
+)
 
-    messages = re.split(pattern, data)[1:]
-    dates = re.findall(pattern, data)
+def _normalize_text(text: str) -> str:
+    if text is None:
+        return ""
+    return (
+        text.replace("\u202f", " ")
+            .replace("\u200e", "")
+            .replace("\ufeff", "")
+    )
 
-    df = pd.DataFrame({'user_message': messages, 'message_date': dates})
-    # convert message_date type
-    df['message_date'] = pd.to_datetime(df['message_date'], format='%d/%m/%y, %I:%M %p - ', errors='coerce')
-    df.rename(columns={'message_date': 'date'}, inplace=True)
+def _get_period(hour: int) -> str:
+    if pd.isna(hour):
+        return ""
+    hour = int(hour)
+    if hour == 23:
+        return "23-00"
+    if hour == 0:
+        return "00-01"
+    return f"{hour:02d}-{hour + 1:02d}"
 
-    users = []
-    messages = []
-    for message in df['user_message']:
-        entry = re.split('([\w\W]+?):\s', message)
-        if entry[1:]:  # user name
-            users.append(entry[1])
-            messages.append(" ".join(entry[2:]))
+def preprocess(data: str) -> pd.DataFrame:
+    data = _normalize_text(data)
+
+    if not data.strip():
+        return pd.DataFrame(
+            columns=[
+                "date", "user", "message", "only_date", "year", "month_num",
+                "month", "day", "day_name", "hour", "minute", "period"
+            ]
+        )
+
+    lines = data.splitlines()
+
+    records: List[Dict[str, str]] = []
+    current = None
+
+    for raw_line in lines:
+        line = raw_line.strip("\r")
+
+        match = MESSAGE_START_RE.match(line)
+        if match:
+            if current is not None:
+                records.append(current)
+
+            current = {
+                "date_str": match.group("date").strip(),
+                "time_str": match.group("time").strip(),
+                "body": match.group("body").strip()
+            }
         else:
-            users.append('group_notification')
-            messages.append(entry[0])
+            if current is not None:
+                current["body"] += "\n" + line.strip()
 
-    df['user'] = users
-    df['message'] = messages
-    df.drop(columns=['user_message'], inplace=True)
+    if current is not None:
+        records.append(current)
 
-    df['only_date'] = df['date'].dt.date
-    df['year'] = df['date'].dt.year
-    df['month_num'] = df['date'].dt.month
-    df['month'] = df['date'].dt.month_name()
-    df['day'] = df['date'].dt.day
-    df['day_name'] = df['date'].dt.day_name()
-    df['hour'] = df['date'].dt.hour
-    df['minute'] = df['date'].dt.minute
-    df = df[df['user'] != 'group_notification']
+    if not records:
+        return pd.DataFrame(
+            columns=[
+                "date", "user", "message", "only_date", "year", "month_num",
+                "month", "day", "day_name", "hour", "minute", "period"
+            ]
+        )
 
-    period = []
-    for hour in df[['day_name', 'hour']]['hour']:
-        if hour == 23:
-            period.append(str(hour) + "-" + str('00'))
-        elif hour == 0:
-            period.append(str('00') + "-" + str(hour + 1))
+    parsed_rows = []
+
+    for rec in records:
+        body = rec["body"].strip()
+
+        # Split only once so message text can contain colons safely.
+        if ": " in body:
+            user, message = body.split(": ", 1)
+            user = user.strip()
+            message = message.strip()
         else:
-            period.append(str(hour) + "-" + str(hour + 1))
+            user = "group_notification"
+            message = body
 
-    df['period'] = period
+        dt_text = f"{rec['date_str']} {rec['time_str']}"
+        dt = pd.to_datetime(dt_text, dayfirst=True, errors="coerce")
+
+        parsed_rows.append(
+            {
+                "date": dt,
+                "user": user if user else "group_notification",
+                "message": message if message else "",
+            }
+        )
+
+    df = pd.DataFrame(parsed_rows)
+
+    df = df.dropna(subset=["date"]).reset_index(drop=True)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "date", "user", "message", "only_date", "year", "month_num",
+                "month", "day", "day_name", "hour", "minute", "period"
+            ]
+        )
+
+    df["only_date"] = df["date"].dt.date
+    df["year"] = df["date"].dt.year
+    df["month_num"] = df["date"].dt.month
+    df["month"] = df["date"].dt.month_name()
+    df["day"] = df["date"].dt.day
+    df["day_name"] = df["date"].dt.day_name()
+    df["hour"] = df["date"].dt.hour
+    df["minute"] = df["date"].dt.minute
+    df["period"] = df["hour"].apply(_get_period)
 
     return df
