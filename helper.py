@@ -1,29 +1,18 @@
-from pathlib import Path
+from __future__ import annotations
+
+import re
 from collections import Counter
+from typing import Optional
 
 import pandas as pd
 from urlextract import URLExtract
 from wordcloud import WordCloud
 import emoji
 
+from config import load_stop_words
+
 extract = URLExtract()
-
-BASE_DIR = Path(__file__).resolve().parent
-STOPWORD_CANDIDATES = [
-    BASE_DIR / "stop_hinglish.txt",
-    BASE_DIR / "data" / "stop_hinglish.txt",
-]
-
-def _load_stop_words() -> set:
-    for path in STOPWORD_CANDIDATES:
-        if path.exists():
-            try:
-                return set(path.read_text(encoding="utf-8").split())
-            except Exception:
-                pass
-    return set()
-
-STOP_WORDS = _load_stop_words()
+STOP_WORDS = load_stop_words()
 
 NOISE_PATTERN = r"(?:<media omitted>|this message was deleted|deleted this message|message deleted|you deleted this message)"
 
@@ -45,11 +34,6 @@ def _text_only(df: pd.DataFrame) -> pd.DataFrame:
     mask &= df["user"].fillna("").ne("group_notification")
 
     return df.loc[mask].copy()
-
-def _safe_counter_df(counter_obj, col1_name: str, col2_name: str) -> pd.DataFrame:
-    if not counter_obj:
-        return pd.DataFrame(columns=[col1_name, col2_name])
-    return pd.DataFrame(counter_obj, columns=[col1_name, col2_name])
 
 def fetch_stats(selected_user, df):
     df = _filter_by_user(df, selected_user)
@@ -83,11 +67,7 @@ def most_active_users(df):
         return pd.Series(dtype=int), pd.DataFrame(columns=["name", "percent"])
 
     x = df["user"].value_counts().head(10)
-
-    percent_df = (
-        (df["user"].value_counts() / df.shape[0]) * 100
-    ).round(2).reset_index()
-
+    percent_df = ((df["user"].value_counts() / df.shape[0]) * 100).round(2).reset_index()
     percent_df.columns = ["name", "percent"]
     return x, percent_df
 
@@ -177,7 +157,6 @@ def monthly_timeline(selected_user, df):
         return pd.DataFrame(columns=["year", "month_num", "month", "message", "time"])
 
     timeline = df.groupby(["year", "month_num", "month"]).count()["message"].reset_index()
-
     timeline["time"] = timeline["month"] + "-" + timeline["year"].astype(str)
     return timeline
 

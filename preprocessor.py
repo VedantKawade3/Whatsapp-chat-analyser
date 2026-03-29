@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 import re
 from typing import List, Dict
+
 import pandas as pd
 
-# Matches:
-# 18/09/25, 7:10 pm - ...
-# 18/09/2025, 19:10 - ...
 MESSAGE_START_RE = re.compile(
     r'^(?P<date>\d{1,2}/\d{1,2}/\d{2,4}),\s'
     r'(?P<time>\d{1,2}:\d{2}(?:\s?[ap]m)?)\s-\s'
@@ -34,23 +34,22 @@ def _get_period(hour: int) -> str:
 def preprocess(data: str) -> pd.DataFrame:
     data = _normalize_text(data)
 
+    base_columns = [
+        "date", "user", "message", "only_date", "year", "month_num",
+        "month", "day", "day_name", "hour", "minute", "period"
+    ]
+
     if not data.strip():
-        return pd.DataFrame(
-            columns=[
-                "date", "user", "message", "only_date", "year", "month_num",
-                "month", "day", "day_name", "hour", "minute", "period"
-            ]
-        )
+        return pd.DataFrame(columns=base_columns)
 
     lines = data.splitlines()
-
     records: List[Dict[str, str]] = []
     current = None
 
     for raw_line in lines:
         line = raw_line.strip("\r")
-
         match = MESSAGE_START_RE.match(line)
+
         if match:
             if current is not None:
                 records.append(current)
@@ -68,22 +67,16 @@ def preprocess(data: str) -> pd.DataFrame:
         records.append(current)
 
     if not records:
-        return pd.DataFrame(
-            columns=[
-                "date", "user", "message", "only_date", "year", "month_num",
-                "month", "day", "day_name", "hour", "minute", "period"
-            ]
-        )
+        return pd.DataFrame(columns=base_columns)
 
     parsed_rows = []
 
     for rec in records:
         body = rec["body"].strip()
 
-        # Split only once so message text can contain colons safely.
         if ": " in body:
             user, message = body.split(": ", 1)
-            user = user.strip()
+            user = user.strip() or "group_notification"
             message = message.strip()
         else:
             user = "group_notification"
@@ -95,22 +88,16 @@ def preprocess(data: str) -> pd.DataFrame:
         parsed_rows.append(
             {
                 "date": dt,
-                "user": user if user else "group_notification",
-                "message": message if message else "",
+                "user": user,
+                "message": message,
             }
         )
 
     df = pd.DataFrame(parsed_rows)
-
     df = df.dropna(subset=["date"]).reset_index(drop=True)
 
     if df.empty:
-        return pd.DataFrame(
-            columns=[
-                "date", "user", "message", "only_date", "year", "month_num",
-                "month", "day", "day_name", "hour", "minute", "period"
-            ]
-        )
+        return pd.DataFrame(columns=base_columns)
 
     df["only_date"] = df["date"].dt.date
     df["year"] = df["date"].dt.year
