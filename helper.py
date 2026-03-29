@@ -39,26 +39,41 @@ def most_active_users(df):
 
 def create_wordcloud(selected_user, df):
 
-    with open('stop_hinglish.txt', 'r') as f:
-        stop_words = set(f.read().split())   # ✅ FIX
+    f = open('data/stop_hinglish.txt', 'r')
+    stop_words = f.read()
 
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
 
     temp = df[df['user'] != 'group_notification']
-    temp = temp[~temp['message'].str.lower().str.contains('deleted|edited', na=False)]
     temp = temp[temp['message'] != '<Media omitted>\n']
 
-    def remove_stop_words(message):
-        return " ".join([word for word in message.lower().split() if word not in stop_words])
+    # remove unwanted messages
+    temp = temp[~temp['message'].str.contains(
+        'deleted this message|this message was deleted',
+        case=False,
+        na=False
+    )]
 
-    wc = WordCloud(width=500, height=500, min_font_size=10, background_color='white')
+    def remove_stop_words(message):
+        stop_words = set(stop_words.split())
+        y = []
+        for word in message.lower().split():
+            if word not in stop_words:
+                y.append(word)
+        return " ".join(y)
 
     temp = temp.copy()
     temp['message'] = temp['message'].apply(remove_stop_words)
 
-    df_wc = wc.generate(temp['message'].str.cat(sep=" "))
-    return df_wc
+    # 🔥 CRITICAL FIX
+    text = temp['message'].str.cat(sep=" ").strip()
+
+    if not text:
+        return None   # no data
+
+    wc = WordCloud(width=500, height=500, min_font_size=10, background_color='white')
+    return wc.generate(text)
 
 def most_common_words(selected_user,df):
 
@@ -73,6 +88,8 @@ def most_common_words(selected_user,df):
     temp = temp[~temp['message'].str.lower().str.contains(r'deleted|edited|<media omitted>|this message', na=False)]
 
     words = []
+
+    stop_words = set(stop_words.split())
 
     for message in temp['message']:
         for word in message.lower().split():
